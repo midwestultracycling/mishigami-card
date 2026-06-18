@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Race Card">
+  <meta name="theme-color" content="#051829">
+  <meta name="description" content="Mishigami 2026 — Create your race progress card">
+  <title>Mishigami Race Card</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <link rel="icon" href="assets/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── Screen 1: Race selector ─────────────────────────────────────────── -->
+  <div id="screen-select" class="screen active">
+    <div class="select-header">
+      <img src="assets/logo.png" class="select-logo" alt="Mishigami">
+      <div class="select-badge">MISHIGAMI 2026 · JULY 11</div>
+      <h1 class="select-title">Race Card</h1>
+      <p class="select-sub">Share your progress with the world</p>
+    </div>
+    <div class="race-grid">
+      <button class="race-card" data-race="mishigami">
+        <div class="race-card-badge">~1,121 MI</div>
+        <div class="race-card-name">MAIN<br>EVENT</div>
+        <div class="race-card-sub">Full loop around Lake Michigan</div>
+      </button>
+      <button class="race-card" data-race="mini-gami">
+        <div class="race-card-badge">~484 MI</div>
+        <div class="race-card-name">MINI&#8209;GAMI</div>
+        <div class="race-card-sub">Southern half of the lake</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Screen 2: Card builder ──────────────────────────────────────────── -->
+  <div id="screen-build" class="screen">
+
+    <div class="build-header">
+      <button id="btn-back" class="btn-back">← Races</button>
+      <span id="build-race-label" class="build-race-label"></span>
+      <div class="format-toggle">
+        <button class="fmt-btn active" data-format="square" title="Square (Instagram feed)">&#9632; Square</button>
+        <button class="fmt-btn"        data-format="story"  title="Story (Instagram / Strava)">&#9646; Story</button>
+      </div>
+    </div>
+
+    <!-- Card preview (also drop target for photos) -->
+    <div class="preview-wrap" id="preview-wrap" title="Drag a photo here">
+      <canvas id="preview-canvas"></canvas>
+      <div id="preview-placeholder" class="preview-placeholder">
+        Add a photo to see your card
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+
+      <!-- GPS -->
+      <button id="btn-gps" class="btn-primary btn-gps">
+        <span class="btn-icon">⊕</span>
+        <span id="btn-gps-label">Get My Location</span>
+      </button>
+      <div id="gps-status" class="gps-status"></div>
+
+      <!-- Rider name -->
+      <div class="field-group">
+        <label class="field-label" for="input-name">YOUR NAME <span style="opacity:.5;font-weight:400;letter-spacing:.05em">/ OPTIONAL</span></label>
+        <input id="input-name" class="field-input" type="text"
+               placeholder="e.g. Jack Peck"
+               autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+      </div>
+
+      <!-- Stats row (auto-filled by GPS; manually editable) -->
+      <div class="stats-row">
+        <div class="stat-field">
+          <label class="field-label" for="input-miles">MILES</label>
+          <input id="input-miles" class="field-input stat-input" type="number"
+                 placeholder="247" step="0.1" min="0">
+        </div>
+        <div class="stat-field">
+          <label class="field-label" for="input-elapsed">ELAPSED</label>
+          <input id="input-elapsed" class="field-input stat-input" type="text"
+                 placeholder="38:24" maxlength="6">
+        </div>
+        <div class="stat-field">
+          <label class="field-label" for="input-speed">MPH</label>
+          <input id="input-speed" class="field-input stat-input" type="number"
+                 placeholder="6.4" step="0.1" min="0">
+        </div>
+      </div>
+
+      <!-- Photo -->
+      <button id="btn-photo" class="btn-secondary">
+        <span class="btn-icon">📷</span>
+        <span id="btn-photo-label">Add Photo</span>
+      </button>
+      <input id="input-photo" type="file" accept="image/*" capture="environment" style="display:none">
+
+      <!-- Route map toggle -->
+      <div class="option-row">
+        <div class="option-label-group">
+          <div class="option-label">Route map</div>
+          <div class="option-hint">Show your position on the route</div>
+        </div>
+        <button id="btn-map-toggle" class="map-toggle">Off</button>
+      </div>
+
+      <!-- Save -->
+      <button id="btn-download" class="btn-primary btn-download" disabled>
+        Save Card
+      </button>
+
+    </div>
+  </div>
+
+  <script src="routes/route-data.js"></script>
+  <script src="gpx.js"></script>
+  <script src="renderer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

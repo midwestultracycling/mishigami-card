@@ -1,0 +1,14 @@
+{
+  "name": "Mishigami Race Card",
+  "short_name": "Race Card",
+  "description": "Create and share your Mishigami 2026 race progress card",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#051829",
+  "theme_color": "#051829",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

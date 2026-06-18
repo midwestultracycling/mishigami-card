@@ -1,0 +1,376 @@
+/**
+ * app.js — Mishigami Race Card main application
+ *
+ * Race start: July 11, 2026 at 7:00 AM CDT (= 12:00 UTC)
+ */
+
+'use strict';
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+// Race start time: 2026-07-11 07:00 CDT = 12:00 UTC
+const RACE_START_UTC = new Date('2026-07-11T12:00:00Z').getTime();
+
+const ROUTES = {
+  'mishigami': { file: 'routes/mishigami.json',  totalMi: 1121.0, label: 'MISHIGAMI MAIN EVENT' },
+  'mini-gami': { file: 'routes/mini-gami.json',  totalMi: 484.0,  label: 'MINI-GAMI'            },
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+const state = {
+  race:             null,
+  route:            null,      // loaded JSON array
+  photo:            null,      // HTMLImageElement
+  name:             '',
+  miles:            null,
+  elapsed:          null,      // "HH:MM" string
+  speed:            null,
+  progressFraction: 0,
+  format:           'square',
+  showMap:          false,
+  logoImg:          null,
+  fontsReady:       false,
+  renderPending:    false,
+};
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+
+const $ = id => document.getElementById(id);
+
+const screenSelect  = $('screen-select');
+const screenBuild   = $('screen-build');
+const previewCanvas = $('preview-canvas');
+const previewWrap   = $('preview-wrap');
+const previewPH     = $('preview-placeholder');
+const btnBack       = $('btn-back');
+const btnGps        = $('btn-gps');
+const btnGpsLabel   = $('btn-gps-label');
+const gpsStatus     = $('gps-status');
+const inputName     = $('input-name');
+const inputMiles    = $('input-miles');
+const inputElapsed  = $('input-elapsed');
+const inputSpeed    = $('input-speed');
+const btnPhoto      = $('btn-photo');
+const inputPhoto    = $('input-photo');
+const btnMapToggle  = $('btn-map-toggle');
+const btnDownload   = $('btn-download');
+const buildRaceLabel = $('build-race-label');
+
+// ── Elapsed time formatting ───────────────────────────────────────────────────
+
+function calcElapsed() {
+  const now  = Date.now();
+  const diff = now - RACE_START_UTC;
+  if (diff < 0) return null; // Race hasn't started yet
+  const totalMins = Math.floor(diff / 60000);
+  const h  = Math.floor(totalMins / 60);
+  const m  = totalMins % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+// ── Canvas preview rendering ──────────────────────────────────────────────────
+
+let _renderTimer = null;
+
+function scheduleRender() {
+  if (_renderTimer) clearTimeout(_renderTimer);
+  _renderTimer = setTimeout(doRender, 60);
+}
+
+function doRender() {
+  if (!state.race || !state.fontsReady) return;
+
+  const canvas = Renderer.renderCard({
+    race:             state.race,
+    photo:            state.photo,
+    name:             state.name,
+    miles:            state.miles,
+    elapsed:          state.elapsed,
+    speed:            state.speed,
+    progressFraction: state.progressFraction,
+    format:           state.format,
+    logoImg:          state.logoImg,
+    route:            state.route,
+    showMap:          state.showMap,
+  });
+
+  // Copy to preview canvas
+  const W = state.format === 'story' ? 1080 : 1080;
+  const H = state.format === 'story' ? 1920 : 1080;
+  previewCanvas.width  = W;
+  previewCanvas.height = H;
+  const ctx = previewCanvas.getContext('2d');
+  ctx.drawImage(canvas, 0, 0);
+
+  previewPH.style.display = 'none';
+  previewCanvas.style.display = 'block';
+
+  // Enable download once we have something to show
+  btnDownload.disabled = false;
+}
+
+// ── GPS ───────────────────────────────────────────────────────────────────────
+
+function getLocation() {
+  if (!navigator.geolocation) {
+    setGpsStatus('GPS not available on this device.', true);
+    return;
+  }
+  if (!state.route) {
+    setGpsStatus('Route still loading, try again in a moment.', true);
+    return;
+  }
+
+  btnGpsLabel.textContent = 'Getting location…';
+  btnGps.disabled = true;
+  setGpsStatus('', false);
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      const result = GPX.snap(latitude, longitude, state.route);
+
+      // Elapsed from race start
+      const elapsed = calcElapsed();
+
+      // Compute speed: miles / hours
+      let speed = null;
+      if (elapsed && result.distanceMiles > 0) {
+        const parts = elapsed.split(':');
+        const hours = parseInt(parts[0]) + parseInt(parts[1]) / 60;
+        if (hours > 0) speed = result.distanceMiles / hours;
+      }
+
+      state.miles            = result.distanceMiles;
+      state.elapsed          = elapsed;
+      state.speed            = speed;
+      state.progressFraction = result.progressFraction;
+
+      // Populate fields
+      inputMiles.value   = result.distanceMiles.toFixed(1);
+      inputElapsed.value = elapsed || '';
+      inputSpeed.value   = speed ? speed.toFixed(1) : '';
+
+      const offKm = (result.offRouteMeters / 1000).toFixed(1);
+      const pct   = (result.progressFraction * 100).toFixed(1);
+      const warn  = result.offRouteMeters > 2000
+        ? ` (${offKm}km off route — check accuracy)`
+        : '';
+      setGpsStatus(`${pct}% complete · accuracy ±${Math.round(accuracy)}m${warn}`, false);
+
+      btnGpsLabel.textContent = 'Refresh Location';
+      btnGps.disabled = false;
+      scheduleRender();
+    },
+    err => {
+      const msgs = {
+        1: 'Location access denied. Enter stats manually.',
+        2: 'Location unavailable. Try again.',
+        3: 'Location timed out. Try again.',
+      };
+      setGpsStatus(msgs[err.code] || 'Location error.', true);
+      btnGpsLabel.textContent = 'Get My Location';
+      btnGps.disabled = false;
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+  );
+}
+
+function setGpsStatus(msg, isError) {
+  gpsStatus.textContent  = msg;
+  gpsStatus.className    = 'gps-status' + (isError ? ' gps-error' : '');
+}
+
+// ── Route loading ─────────────────────────────────────────────────────────────
+
+async function loadRoute(race) {
+  try {
+    state.route = await GPX.load(ROUTES[race].file);
+    // Re-render so the route map appears if the toggle was already on
+    scheduleRender();
+  } catch (e) {
+    console.error('Route load failed:', e);
+    setGpsStatus('Route data unavailable — enter stats manually.', true);
+  }
+}
+
+// ── Logo preload ──────────────────────────────────────────────────────────────
+
+function loadLogo() {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload  = () => resolve(img);
+    img.onerror = () => resolve(null);  // graceful — card still renders without logo
+    img.src = 'assets/logo.png';
+  });
+}
+
+// ── Photo handling ────────────────────────────────────────────────────────────
+
+function handlePhotoFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      state.photo = img;
+      $('btn-photo-label').textContent = 'Photo added — tap to change';
+      scheduleRender();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Download ──────────────────────────────────────────────────────────────────
+
+function downloadCard() {
+  const canvas = Renderer.renderCard({
+    race:             state.race,
+    photo:            state.photo,
+    name:             state.name,
+    miles:            state.miles,
+    elapsed:          state.elapsed,
+    speed:            state.speed,
+    progressFraction: state.progressFraction,
+    format:           state.format,
+    logoImg:          state.logoImg,
+    route:            state.route,
+    showMap:          state.showMap,
+  });
+
+  const a    = document.createElement('a');
+  const name = state.name ? state.name.replace(/\s+/g, '-').toLowerCase() : 'rider';
+  const race = state.race === 'mishigami' ? 'mishigami' : 'mini-gami';
+  a.download = `${race}-race-card-${name}.png`;
+  a.href     = canvas.toDataURL('image/png');
+  a.click();
+}
+
+// ── Screen transitions ────────────────────────────────────────────────────────
+
+function showBuildScreen(race) {
+  state.race  = race;
+  state.route = null;
+
+  buildRaceLabel.textContent = ROUTES[race].label;
+  screenSelect.classList.remove('active');
+  screenBuild.classList.add('active');
+
+  loadRoute(race);
+  scheduleRender();
+}
+
+function showSelectScreen() {
+  state.race = null;
+  screenBuild.classList.remove('active');
+  screenSelect.classList.add('active');
+}
+
+// ── Event listeners ───────────────────────────────────────────────────────────
+
+document.querySelectorAll('.race-card').forEach(btn => {
+  btn.addEventListener('click', () => showBuildScreen(btn.dataset.race));
+});
+
+btnBack.addEventListener('click', showSelectScreen);
+
+btnGps.addEventListener('click', getLocation);
+
+// Format toggle
+document.querySelectorAll('.fmt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.format = btn.dataset.format;
+    const isStory = state.format === 'story';
+    previewCanvas.classList.toggle('story', isStory);
+    previewWrap.classList.toggle('story', isStory);
+    scheduleRender();
+  });
+});
+
+// Name input
+inputName.addEventListener('input', () => {
+  state.name = inputName.value;
+  scheduleRender();
+});
+
+// Manual stat inputs
+inputMiles.addEventListener('input', () => {
+  const v = parseFloat(inputMiles.value);
+  state.miles = isNaN(v) ? null : v;
+  // Recompute speed if elapsed is also set
+  if (state.miles != null && state.elapsed) {
+    const parts = state.elapsed.split(':');
+    const hours = parseInt(parts[0]) + parseInt(parts[1] || 0) / 60;
+    state.speed = hours > 0 ? state.miles / hours : null;
+    if (state.speed) inputSpeed.value = state.speed.toFixed(1);
+  }
+  // Update progress bar
+  if (state.miles != null && state.route) {
+    state.progressFraction = state.miles / ROUTES[state.race].totalMi;
+  }
+  scheduleRender();
+});
+
+inputElapsed.addEventListener('input', () => {
+  state.elapsed = inputElapsed.value || null;
+  // Recompute speed
+  if (state.miles != null && state.elapsed && /^\d+:\d{2}$/.test(state.elapsed)) {
+    const parts = state.elapsed.split(':');
+    const hours = parseInt(parts[0]) + parseInt(parts[1]) / 60;
+    state.speed = hours > 0 ? state.miles / hours : null;
+    if (state.speed) inputSpeed.value = state.speed.toFixed(1);
+  }
+  scheduleRender();
+});
+
+inputSpeed.addEventListener('input', () => {
+  const v = parseFloat(inputSpeed.value);
+  state.speed = isNaN(v) ? null : v;
+  scheduleRender();
+});
+
+// Photo
+btnPhoto.addEventListener('click', () => inputPhoto.click());
+inputPhoto.addEventListener('change', () => handlePhotoFile(inputPhoto.files[0]));
+
+// Drag-and-drop photo
+previewWrap.addEventListener('dragover', e => { e.preventDefault(); previewWrap.classList.add('drag-over'); });
+previewWrap.addEventListener('dragleave', () => previewWrap.classList.remove('drag-over'));
+previewWrap.addEventListener('drop', e => {
+  e.preventDefault();
+  previewWrap.classList.remove('drag-over');
+  handlePhotoFile(e.dataTransfer.files[0]);
+});
+
+// Route map toggle
+if (btnMapToggle) {
+  btnMapToggle.addEventListener('click', () => {
+    state.showMap = !state.showMap;
+    btnMapToggle.classList.toggle('active', state.showMap);
+    btnMapToggle.textContent = state.showMap ? 'On' : 'Off';
+    scheduleRender();
+  });
+}
+
+// Download
+btnDownload.addEventListener('click', downloadCard);
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+async function init() {
+  // Wait for fonts
+  await document.fonts.ready;
+  state.fontsReady = true;
+
+  // Preload logo
+  state.logoImg = await loadLogo();
+
+  // Kick initial render if a race is already selected (shouldn't happen on load)
+  if (state.race) scheduleRender();
+}
+
+init();

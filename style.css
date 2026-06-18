@@ -1,0 +1,418 @@
+/* ── Reset + tokens ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* MUC brand palette */
+  --bg:        #051829;   /* Dark Navy */
+  --bg-mid:    #071e33;   /* Dark Navy mid */
+  --bg-s:      #0a2540;   /* Dark Navy surface */
+  --periw:     #0063A0;   /* Primary Blue (fallback accent) */
+  --periw-d:   rgba(0,99,160,0.15);
+  --periw-b:   rgba(0,99,160,0.38);
+  --pink:      #F49A0B;   /* Gold (primary accent / CTA) */
+  --cream:     #FFFBF8;   /* Cream */
+  --cream-6:   rgba(255,251,248,0.6);
+  --cream-3:   rgba(255,251,248,0.3);
+  --cream-1:   rgba(255,251,248,0.1);
+  --fc: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --radius: 10px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--cream);
+  font-family: var(--fc);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* ── Screens ─────────────────────────────────────────────────────────────── */
+.screen {
+  display: none;
+  min-height: 100dvh;
+  flex-direction: column;
+}
+.screen.active { display: flex; }
+
+/* ── SELECT SCREEN ───────────────────────────────────────────────────────── */
+#screen-select {
+  padding: 48px 24px 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+}
+
+.select-header { text-align: center; }
+
+.select-logo {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  margin-bottom: 16px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.select-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .35em;
+  text-transform: uppercase;
+  color: var(--pink);
+  margin-bottom: 10px;
+}
+
+.select-title {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  color: var(--periw);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.select-sub {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--cream-6);
+  letter-spacing: .04em;
+}
+
+.race-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.race-card {
+  background: var(--bg-mid);
+  border: 1px solid var(--periw-d);
+  border-radius: var(--radius);
+  padding: 24px 16px 20px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .18s, background .18s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.race-card:hover, .race-card:active {
+  border-color: var(--periw-b);
+  background: var(--bg-s);
+}
+
+.race-card-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: var(--pink);
+}
+
+.race-card-name {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: var(--cream);
+  line-height: 1.15;
+}
+
+.race-card-sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--cream-3);
+  line-height: 1.4;
+}
+
+/* ── BUILD SCREEN ────────────────────────────────────────────────────────── */
+#screen-build {
+  padding-bottom: 40px;
+}
+
+.build-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--periw-d);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.btn-back {
+  background: none;
+  border: none;
+  color: var(--periw);
+  font-family: var(--fc);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  cursor: pointer;
+  padding: 6px 0;
+  flex-shrink: 0;
+}
+
+.build-race-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .25em;
+  text-transform: uppercase;
+  color: var(--cream-3);
+  flex: 1;
+}
+
+.format-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.fmt-btn {
+  background: none;
+  border: 1px solid var(--periw-d);
+  border-radius: 5px;
+  color: var(--cream-3);
+  font-family: var(--fc);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.fmt-btn.active {
+  background: var(--periw-d);
+  border-color: var(--periw-b);
+  color: var(--periw);
+}
+
+/* ── Preview ────────────────────────────────────────────────────────────── */
+.preview-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  margin: 16px auto;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-mid);
+  border: 1px solid var(--periw-d);
+  cursor: pointer;
+  /* Square aspect by default; updated via JS for story */
+  aspect-ratio: 1 / 1;
+}
+
+.preview-wrap.drag-over {
+  border-color: var(--periw);
+}
+
+#preview-canvas {
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#preview-canvas.story {
+  aspect-ratio: 9 / 16;
+}
+
+/* Dynamically match wrap aspect to format */
+.preview-wrap:has(#preview-canvas.story) {
+  aspect-ratio: 9 / 16;
+}
+
+.preview-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  color: var(--cream-3);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 16px;
+  max-width: 420px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Buttons */
+.btn-primary {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: none;
+  font-family: var(--fc);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+.btn-gps {
+  background: var(--periw);
+  color: var(--bg);
+}
+
+.btn-download {
+  background: var(--pink);
+  color: #fff;
+  margin-top: 4px;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--periw-d);
+  background: var(--bg-mid);
+  color: var(--cream-6);
+  font-family: var(--fc);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: border-color .15s, color .15s;
+}
+.btn-secondary:hover { border-color: var(--periw-b); color: var(--cream); }
+
+.btn-icon { font-size: 16px; }
+
+/* GPS status */
+.gps-status {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--cream-3);
+  text-align: center;
+  letter-spacing: .04em;
+  min-height: 16px;
+  margin-top: -6px;
+}
+.gps-status.gps-error { color: var(--pink); }
+
+/* Fields */
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+
+.field-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--periw);
+  opacity: .7;
+}
+
+.field-input {
+  background: var(--bg-mid);
+  border: 1px solid var(--periw-d);
+  border-radius: 7px;
+  color: var(--cream);
+  font-family: var(--fc);
+  font-size: 18px;
+  font-weight: 600;
+  padding: 12px 14px;
+  outline: none;
+  width: 100%;
+  transition: border-color .15s;
+  -webkit-appearance: none;
+}
+.field-input::placeholder { color: var(--cream-3); }
+.field-input:focus { border-color: var(--periw-b); }
+
+/* Stats row */
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-field { display: flex; flex-direction: column; gap: 6px; }
+.stat-input { font-size: 16px; text-align: center; padding: 12px 6px; }
+
+/* ── Route map toggle ───────────────────────────────────────────────────── */
+.option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid var(--periw-d);
+}
+
+.option-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.option-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.option-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--cream-3);
+  letter-spacing: .03em;
+}
+
+.map-toggle {
+  background: var(--bg-mid);
+  border: 1px solid var(--periw-d);
+  border-radius: 20px;
+  color: var(--cream-3);
+  font-family: var(--fc);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  padding: 7px 18px;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+  min-width: 52px;
+  text-align: center;
+}
+.map-toggle.active {
+  background: var(--periw-d);
+  border-color: var(--periw-b);
+  color: var(--periw);
+}
+
+/* Scrollbar (desktop) */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--periw-d); border-radius: 2px; }
+
+/* ── Preview aspect ratio fix for story ─────────────────────────────────── */
+/* JS toggles .story class on .preview-wrap */
+.preview-wrap.story { aspect-ratio: 9 / 16; }
