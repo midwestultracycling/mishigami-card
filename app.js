@@ -28,7 +28,7 @@ const state = {
   speed:            null,
   progressFraction: 0,
   format:           'square',
-  showMap:          false,
+  showMap:          true,
   logoImg:          null,
   fontsReady:       false,
   renderPending:    false,
@@ -117,10 +117,9 @@ function getLocation() {
     setGpsStatus('GPS not available on this device.', true);
     return;
   }
-  if (!state.route) {
-    setGpsStatus('Route still loading, try again in a moment.', true);
-    return;
-  }
+  // Note: do NOT gate on state.route here. getCurrentPosition() must be called
+  // to trigger the iOS Safari permission prompt — returning early means the
+  // user never sees the prompt and location "silently fails."
 
   btnGpsLabel.textContent = 'Getting location…';
   btnGps.disabled = true;
@@ -129,6 +128,15 @@ function getLocation() {
   navigator.geolocation.getCurrentPosition(
     pos => {
       const { latitude, longitude, accuracy } = pos.coords;
+
+      // If route isn't loaded yet, show position but skip snap
+      if (!state.route) {
+        setGpsStatus(`Location found · accuracy ±${Math.round(accuracy)}m — route still loading, tap again in a moment.`, false);
+        btnGpsLabel.textContent = 'Refresh Location';
+        btnGps.disabled = false;
+        return;
+      }
+
       const result = GPX.snap(latitude, longitude, state.route);
 
       // Elapsed from race start
@@ -240,10 +248,13 @@ function downloadCard() {
     showMap:          state.showMap,
   });
 
-  const a    = document.createElement('a');
-  const name = state.name ? state.name.replace(/\s+/g, '-').toLowerCase() : 'rider';
-  const race = state.race === 'mishigami' ? 'mishigami' : 'mini-gami';
-  a.download = `${race}-race-card-${name}.png`;
+  const a       = document.createElement('a');
+  const name    = state.name ? state.name.replace(/\s+/g, '-').toLowerCase() : 'rider';
+  const race    = state.race === 'mishigami' ? 'mishigami' : 'mini-gami';
+  const miPart  = state.miles != null ? `-${Math.round(state.miles)}mi` : '';
+  const d       = new Date();
+  const datePart = `-${d.getMonth() + 1}-${d.getDate()}`;
+  a.download = `${race}-race-card-${name}${miPart}${datePart}.png`;
   a.href     = canvas.toDataURL('image/png');
   a.click();
 }
@@ -368,6 +379,12 @@ async function init() {
 
   // Preload logo
   state.logoImg = await loadLogo();
+
+  // Sync map toggle button to initial state (map is on by default)
+  if (btnMapToggle) {
+    btnMapToggle.classList.toggle('active', state.showMap);
+    btnMapToggle.textContent = state.showMap ? 'On' : 'Off';
+  }
 
   // Kick initial render if a race is already selected (shouldn't happen on load)
   if (state.race) scheduleRender();

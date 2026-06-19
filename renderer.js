@@ -35,19 +35,19 @@ const Renderer = (() => {
 
   // Gradient overlays (top + bottom bands)
   function drawGradients(ctx, W, H) {
-    // Top band — heavier to anchor the logo
+    // Top band — lighter to let more photo through
     const topG = ctx.createLinearGradient(0, 0, 0, H * 0.42);
-    topG.addColorStop(0,    C.dark80);
-    topG.addColorStop(0.6,  'rgba(5,24,41,0.35)');
+    topG.addColorStop(0,    'rgba(5,24,41,0.55)');   // was 0.82
+    topG.addColorStop(0.6,  'rgba(5,24,41,0.18)');   // was 0.35
     topG.addColorStop(1,    C.dark0);
     ctx.fillStyle = topG;
     ctx.fillRect(0, 0, W, H * 0.42);
 
-    // Bottom band — very heavy so stats are legible
+    // Bottom band — softened so stats stay legible but gradient is subtler
     const btmG = ctx.createLinearGradient(0, H * 0.52, 0, H);
     btmG.addColorStop(0,   C.dark0);
-    btmG.addColorStop(0.4, 'rgba(5,24,41,0.75)');
-    btmG.addColorStop(1,   C.dark95);
+    btmG.addColorStop(0.4, 'rgba(5,24,41,0.55)');   // was 0.75
+    btmG.addColorStop(1,   C.dark80);               // was dark95 (0.96)
     ctx.fillStyle = btmG;
     ctx.fillRect(0, H * 0.52, W, H * 0.48);
   }
@@ -95,9 +95,9 @@ const Renderer = (() => {
 
     // ── Rider name ──────────────────────────────────────
     const nameSize = Math.round(W * 0.058);
-    // Story: anchor at ~63% of canvas height (well within safe zone).
+    // Story: anchor at ~73% of canvas height.
     // Square: keep existing bottom-anchored position.
-    const nameY    = isStory ? H * 0.70 : H - W * 0.285;
+    const nameY    = isStory ? H * 0.73 : H - W * 0.285;
 
     if (name && name.trim()) {
       ctx.save();
@@ -130,8 +130,9 @@ const Renderer = (() => {
     const colW      = usableW / 3;
     const numSize   = Math.round(W * 0.068);
     const lblSize   = Math.round(W * 0.020);
-    const numY      = divY + W * 0.085;
-    const lblY      = numY + W * 0.038;
+    // Story: tighten stat block spacing so lblY stays within safe zone (≤1574px on 1920px canvas)
+    const numY      = divY + (isStory ? W * 0.068 : W * 0.085);
+    const lblY      = numY + (isStory ? W * 0.030 : W * 0.038);
 
     stats.forEach(({ value, label }, i) => {
       const cx = pad + colW * i + colW / 2;

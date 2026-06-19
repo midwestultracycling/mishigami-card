@@ -10,12 +10,7 @@
 
 set -e
 
-GITHUB_USER="${1}"
-
-if [ -z "$GITHUB_USER" ]; then
-  echo "Usage: ./deploy.sh YOUR_GITHUB_USERNAME"
-  exit 1
-fi
+GITHUB_USER="${1:-midwestultracycling}"
 
 REPO="mishigami-card"
 REMOTE="https://github.com/${GITHUB_USER}/${REPO}.git"
