@@ -112,40 +112,20 @@ function doRender() {
 
 // ── GPS ───────────────────────────────────────────────────────────────────────
 
-async function getLocation() {
+function getLocation() {
   if (!navigator.geolocation) {
     setGpsStatus('GPS not supported on this browser.', true);
     return;
-  }
-
-  // Use the Permissions API (supported on iOS 16+ / iOS 26) to check the
-  // current permission state *before* calling getCurrentPosition.
-  // This lets us give a specific, actionable error if location is blocked,
-  // rather than a silent failure or generic message.
-  if (navigator.permissions) {
-    try {
-      const perm = await navigator.permissions.query({ name: 'geolocation' });
-      console.log('[GPS] permission state:', perm.state);
-
-      if (perm.state === 'denied') {
-        setGpsStatus(
-          'Location is blocked. To fix on iPhone: Settings → Apps → Safari → ' +
-          'Settings for Websites → Location → set to "Ask" or "Allow." ' +
-          'Then reload this page.',
-          true
-        );
-        return;
-      }
-      // 'granted' or 'prompt' — proceed normally below
-    } catch (e) {
-      console.warn('[GPS] Permissions API unavailable, proceeding anyway:', e);
-    }
   }
 
   btnGpsLabel.textContent = 'Getting location…';
   btnGps.disabled = true;
   setGpsStatus('', false);
 
+  // IMPORTANT: call getCurrentPosition immediately — no await before this.
+  // iOS Safari's user-activation window for geolocation is very short.
+  // Any async gap (await, setTimeout, toBlob callback) before this call
+  // can cause iOS to silently deny without showing the permission prompt.
   navigator.geolocation.getCurrentPosition(
     pos => {
       const { latitude, longitude, accuracy } = pos.coords;
@@ -193,12 +173,28 @@ async function getLocation() {
       scheduleRender();
     },
     err => {
-      const msgs = {
-        1: 'Location blocked. On iPhone: Settings → Apps → Safari → Settings for Websites → Location → Ask or Allow. Then reload.',
-        2: 'Location unavailable. Try again.',
-        3: 'Location timed out. Try again.',
-      };
-      setGpsStatus(msgs[err.code] || `Location error (code ${err.code}).`, true);
+      if (err.code === 1) {
+        // Log permission state to console for diagnostics
+        if (navigator.permissions) {
+          navigator.permissions.query({ name: 'geolocation' })
+            .then(p => console.log('[GPS] denied. Permissions API state:', p.state))
+            .catch(e => console.warn('[GPS] permissions query failed:', e));
+        }
+        setGpsStatus(
+          'Location blocked (code 1). Try in order: ' +
+          '① Settings → Apps → Safari → Settings for Websites → Location → Ask or Allow, then reload. ' +
+          '② Settings → Apps → Safari → Advanced → Website Data → find midwestultracycling → Delete, then reload. ' +
+          '③ Open this page in a Private Browsing tab in Safari — iOS will prompt you fresh.',
+          true
+        );
+      } else {
+        setGpsStatus(
+          err.code === 2 ? 'Location unavailable. Try again.' :
+          err.code === 3 ? 'Location timed out. Try again.' :
+          `Location error (code ${err.code}).`,
+          true
+        );
+      }
       btnGpsLabel.textContent = 'Get My Location';
       btnGps.disabled = false;
     },
@@ -283,24 +279,30 @@ async function downloadCard() {
   const canvas   = renderFull();
   const filename = buildFilename();
 
-  // iOS Safari: use Web Share API so the native share sheet appears.
-  // "Save Image" is the first option — much cleaner than Downloads folder.
-  if (navigator.canShare) {
-    canvas.toBlob(async blob => {
+  // Try Web Share API with files (iOS native share sheet → "Save Image").
+  // IMPORTANT: toBlob must be wrapped in a Promise and awaited — NOT used as a
+  // callback — so iOS Safari keeps the user-activation context alive through
+  // the async gap. Using canvas.toBlob(callback) breaks the activation chain
+  // and causes iOS to skip the share sheet silently.
+  if (typeof navigator.share === 'function') {
+    try {
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       const file = new File([blob], filename, { type: 'image/png' });
-      if (navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: 'Mishigami Race Card' });
-          return;
-        } catch (e) {
-          if (e.name === 'AbortError') return; // user dismissed share sheet — that's fine
-          // Any other error: fall through to traditional download
-        }
-      }
-      triggerDownload(canvas, filename);
-    }, 'image/png');
+      await navigator.share({ files: [file], title: 'Mishigami Race Card' });
+      return; // success — share sheet appeared
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user dismissed — fine
+      console.warn('[Save] Web Share API failed, showing modal fallback:', e.message);
+    }
+  }
+
+  // Fallback: show full-screen in-app image so user can long-press → Save to Photos.
+  // Works on all iOS versions regardless of Web Share API support.
+  // On desktop/Android, trigger a traditional file download instead.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    showSaveModal(canvas.toDataURL('image/png'));
   } else {
-    // Desktop / Android: traditional anchor download
     triggerDownload(canvas, filename);
   }
 }
@@ -310,6 +312,20 @@ function triggerDownload(canvas, filename) {
   a.download = filename;
   a.href     = canvas.toDataURL('image/png');
   a.click();
+}
+
+function showSaveModal(dataUrl) {
+  const overlay = document.createElement('div');
+  overlay.className = 'save-overlay';
+  overlay.innerHTML =
+    '<div class="save-modal-inner">' +
+      '<p class="save-modal-hint">Long press the image below<br>then tap <strong>Save to Photos</strong></p>' +
+      '<img src="' + dataUrl + '" class="save-modal-img" alt="Race Card">' +
+      '<button class="save-modal-close">Close</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('.save-modal-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 // ── Screen transitions ────────────────────────────────────────────────────────
