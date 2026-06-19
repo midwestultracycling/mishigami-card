@@ -112,14 +112,35 @@ function doRender() {
 
 // ── GPS ───────────────────────────────────────────────────────────────────────
 
-function getLocation() {
+async function getLocation() {
   if (!navigator.geolocation) {
-    setGpsStatus('GPS not available on this device.', true);
+    setGpsStatus('GPS not supported on this browser.', true);
     return;
   }
-  // Note: do NOT gate on state.route here. getCurrentPosition() must be called
-  // to trigger the iOS Safari permission prompt — returning early means the
-  // user never sees the prompt and location "silently fails."
+
+  // Use the Permissions API (supported on iOS 16+ / iOS 26) to check the
+  // current permission state *before* calling getCurrentPosition.
+  // This lets us give a specific, actionable error if location is blocked,
+  // rather than a silent failure or generic message.
+  if (navigator.permissions) {
+    try {
+      const perm = await navigator.permissions.query({ name: 'geolocation' });
+      console.log('[GPS] permission state:', perm.state);
+
+      if (perm.state === 'denied') {
+        setGpsStatus(
+          'Location is blocked. To fix on iPhone: Settings → Apps → Safari → ' +
+          'Settings for Websites → Location → set to "Ask" or "Allow." ' +
+          'Then reload this page.',
+          true
+        );
+        return;
+      }
+      // 'granted' or 'prompt' — proceed normally below
+    } catch (e) {
+      console.warn('[GPS] Permissions API unavailable, proceeding anyway:', e);
+    }
+  }
 
   btnGpsLabel.textContent = 'Getting location…';
   btnGps.disabled = true;
@@ -173,11 +194,11 @@ function getLocation() {
     },
     err => {
       const msgs = {
-        1: 'Location access denied. Enter stats manually.',
+        1: 'Location blocked. On iPhone: Settings → Apps → Safari → Settings for Websites → Location → Ask or Allow. Then reload.',
         2: 'Location unavailable. Try again.',
         3: 'Location timed out. Try again.',
       };
-      setGpsStatus(msgs[err.code] || 'Location error.', true);
+      setGpsStatus(msgs[err.code] || `Location error (code ${err.code}).`, true);
       btnGpsLabel.textContent = 'Get My Location';
       btnGps.disabled = false;
     },
@@ -231,10 +252,19 @@ function handlePhotoFile(file) {
   reader.readAsDataURL(file);
 }
 
-// ── Download ──────────────────────────────────────────────────────────────────
+// ── Download / Share ──────────────────────────────────────────────────────────
 
-function downloadCard() {
-  const canvas = Renderer.renderCard({
+function buildFilename() {
+  const name    = state.name ? state.name.replace(/\s+/g, '-').toLowerCase() : 'rider';
+  const race    = state.race === 'mishigami' ? 'mishigami' : 'mini-gami';
+  const miPart  = state.miles != null ? `-${Math.round(state.miles)}mi` : '';
+  const d       = new Date();
+  const datePart = `-${d.getMonth() + 1}-${d.getDate()}`;
+  return `${race}-race-card-${name}${miPart}${datePart}.png`;
+}
+
+function renderFull() {
+  return Renderer.renderCard({
     race:             state.race,
     photo:            state.photo,
     name:             state.name,
@@ -247,14 +277,37 @@ function downloadCard() {
     route:            state.route,
     showMap:          state.showMap,
   });
+}
 
-  const a       = document.createElement('a');
-  const name    = state.name ? state.name.replace(/\s+/g, '-').toLowerCase() : 'rider';
-  const race    = state.race === 'mishigami' ? 'mishigami' : 'mini-gami';
-  const miPart  = state.miles != null ? `-${Math.round(state.miles)}mi` : '';
-  const d       = new Date();
-  const datePart = `-${d.getMonth() + 1}-${d.getDate()}`;
-  a.download = `${race}-race-card-${name}${miPart}${datePart}.png`;
+async function downloadCard() {
+  const canvas   = renderFull();
+  const filename = buildFilename();
+
+  // iOS Safari: use Web Share API so the native share sheet appears.
+  // "Save Image" is the first option — much cleaner than Downloads folder.
+  if (navigator.canShare) {
+    canvas.toBlob(async blob => {
+      const file = new File([blob], filename, { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Mishigami Race Card' });
+          return;
+        } catch (e) {
+          if (e.name === 'AbortError') return; // user dismissed share sheet — that's fine
+          // Any other error: fall through to traditional download
+        }
+      }
+      triggerDownload(canvas, filename);
+    }, 'image/png');
+  } else {
+    // Desktop / Android: traditional anchor download
+    triggerDownload(canvas, filename);
+  }
+}
+
+function triggerDownload(canvas, filename) {
+  const a    = document.createElement('a');
+  a.download = filename;
   a.href     = canvas.toDataURL('image/png');
   a.click();
 }

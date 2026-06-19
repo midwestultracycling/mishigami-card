@@ -43,13 +43,13 @@ const Renderer = (() => {
     ctx.fillStyle = topG;
     ctx.fillRect(0, 0, W, H * 0.42);
 
-    // Bottom band — softened so stats stay legible but gradient is subtler
-    const btmG = ctx.createLinearGradient(0, H * 0.52, 0, H);
+    // Bottom band — fades in from 60% so stats at 78%+ have dark backing
+    const btmG = ctx.createLinearGradient(0, H * 0.60, 0, H);
     btmG.addColorStop(0,   C.dark0);
-    btmG.addColorStop(0.4, 'rgba(5,24,41,0.55)');   // was 0.75
-    btmG.addColorStop(1,   C.dark80);               // was dark95 (0.96)
+    btmG.addColorStop(0.45, 'rgba(5,24,41,0.55)');
+    btmG.addColorStop(1,   C.dark80);
     ctx.fillStyle = btmG;
-    ctx.fillRect(0, H * 0.52, W, H * 0.48);
+    ctx.fillRect(0, H * 0.60, W, H * 0.40);
   }
 
   // Draw the Mishigami logo PNG in the top-left
@@ -60,8 +60,8 @@ const Renderer = (() => {
     const logoW = W * 0.20;
     const logoH = logoW;             // 1:1 square
     const padX  = W * 0.05;
-    // Story: push below Instagram's top UI chrome (~13% from top)
-    const padY  = isStory ? H * 0.13 : W * 0.05;
+    // Story: 250px top safe zone = H*0.13. Nudge up slightly to H*0.11 for breathing room.
+    const padY  = isStory ? H * 0.11 : W * 0.05;
     ctx.drawImage(logoImg, padX, padY, logoW, logoH);
   }
 
@@ -71,8 +71,8 @@ const Renderer = (() => {
     const fontSize = Math.round(W * 0.021);
     const pad      = W * 0.05;
     const isStory  = H > W;
-    // Story: align with logo safe zone
-    const topY     = isStory ? H * 0.13 : pad;
+    // Story: align with logo safe zone (H*0.11)
+    const topY     = isStory ? H * 0.11 : pad;
 
     ctx.save();
     ctx.font      = `700 ${fontSize}px "Barlow Condensed", "Arial Narrow", sans-serif`;
@@ -95,9 +95,10 @@ const Renderer = (() => {
 
     // ── Rider name ──────────────────────────────────────
     const nameSize = Math.round(W * 0.058);
-    // Story: anchor at ~73% of canvas height.
+    // Story: push to 78% of canvas height (1498px). Safe zone bottom is 87% (1670px),
+    // so the full stat block (name→labels ≈ 160px) lands comfortably within bounds.
     // Square: keep existing bottom-anchored position.
-    const nameY    = isStory ? H * 0.73 : H - W * 0.285;
+    const nameY    = isStory ? H * 0.78 : H - W * 0.285;
 
     if (name && name.trim()) {
       ctx.save();
@@ -170,27 +171,12 @@ const Renderer = (() => {
       ctx.restore();
     });
 
-    // ── Website watermark ────────────────────────────────
-    const wtmkSize = Math.round(W * 0.016);
-    // Story: keep watermark in safe zone (77% of canvas height ≈ 1478px on 1920).
-    // Square: existing bottom position.
-    const wtmkY    = isStory ? H * 0.80 : H - W * 0.038;
-    ctx.save();
-    ctx.font         = `400 ${wtmkSize}px "Barlow Condensed", "Arial Narrow", sans-serif`;
-    ctx.fillStyle    = 'rgba(0,99,160,0.50)';    // Primary Blue 50%
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'alphabetic';
-    if (ctx.letterSpacing !== undefined) ctx.letterSpacing = '0.12em';
-    ctx.fillText('MIDWESTULTRACYCLING.COM', W / 2, wtmkY);
-    if (ctx.letterSpacing !== undefined) ctx.letterSpacing = '0px';
-    ctx.restore();
-
     // ── Progress bar ─────────────────────────────────────
     const barH   = 5;
     const prog   = Math.max(0, Math.min(1, progressFraction || 0));
-    // Story: anchor bar at 80% of canvas (≈1536px on 1920) — within safe zone.
+    // Story: anchor bar at 87% of canvas (≈1661px on 1920) — right at safe zone boundary.
     // Square: keep at very bottom.
-    const barTop = isStory ? Math.round(H * 0.82) - barH : H - barH;
+    const barTop = isStory ? Math.round(H * 0.87) - barH : H - barH;
     ctx.save();
     ctx.fillStyle = 'rgba(255,251,248,0.08)';
     ctx.fillRect(0, barTop, W, barH);
@@ -212,7 +198,7 @@ const Renderer = (() => {
     const inner  = 8;                       // padding inside panel
     // Position: top-right, below the race badge text
     const badgeH = Math.round(W * 0.021) + 20;   // badge font + gap
-    const panelTopY = isStory ? H * 0.13 : pad;
+    const panelTopY = isStory ? H * 0.11 : pad;
     const mapX   = W - pad - mapSz;
     const mapY   = panelTopY + badgeH;
 
