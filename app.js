@@ -289,6 +289,7 @@ async function downloadCard() {
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       const file = new File([blob], filename, { type: 'image/png' });
       await navigator.share({ files: [file], title: 'Mishigami Race Card' });
+      showSuccessPanel();
       return; // success — share sheet appeared
     } catch (e) {
       if (e.name === 'AbortError') return; // user dismissed — fine
@@ -304,6 +305,7 @@ async function downloadCard() {
     showSaveModal(canvas.toDataURL('image/png'));
   } else {
     triggerDownload(canvas, filename);
+    showSuccessPanel();
   }
 }
 
@@ -324,8 +326,54 @@ function showSaveModal(dataUrl) {
       '<button class="save-modal-close">Close</button>' +
     '</div>';
   document.body.appendChild(overlay);
-  overlay.querySelector('.save-modal-close').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('.save-modal-close').addEventListener('click', () => {
+    overlay.remove();
+    showSuccessPanel();
+  });
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+// ── Post-save success panel + "Create another" ─────────────────────────────────
+
+function showSuccessPanel() {
+  if (document.querySelector('.success-overlay')) return; // don't stack
+  const overlay = document.createElement('div');
+  overlay.className = 'success-overlay';
+  overlay.innerHTML =
+    '<div class="success-card">' +
+      '<div class="success-check">✓</div>' +
+      '<div class="success-title">Card saved!</div>' +
+      '<p class="success-text">Now open <strong>Instagram</strong> or <strong>Strava</strong> and post it from your camera roll.</p>' +
+      '<div class="success-actions">' +
+        '<button class="success-again">+ Create another card</button>' +
+        '<button class="success-done">Done</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  // IMPORTANT: resetForNewCard() calls getLocation() synchronously off this tap so
+  // iOS keeps the geolocation user-activation alive — do not add awaits before it.
+  overlay.querySelector('.success-again').addEventListener('click', () => {
+    overlay.remove();
+    resetForNewCard();
+  });
+  overlay.querySelector('.success-done').addEventListener('click', () => overlay.remove());
+}
+
+function resetForNewCard() {
+  // Clear the photo; keep name, race, and loaded route.
+  state.photo = null;
+  inputPhoto.value = '';
+  $('btn-photo-label').textContent = 'Add Photo';
+
+  // Reset the preview back to the placeholder and disable Save until re-rendered.
+  previewCanvas.style.display = 'none';
+  previewPH.style.display = 'flex';
+  btnDownload.disabled = true;
+
+  // Auto-refresh GPS for the new card's current position (Jack's preference).
+  getLocation();
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ── Screen transitions ────────────────────────────────────────────────────────
@@ -439,6 +487,54 @@ if (btnMapToggle) {
 // Download
 btnDownload.addEventListener('click', downloadCard);
 
+// ── Onboarding overlay ──────────────────────────────────────────────────────────
+
+const ONBOARD_KEY    = 'mishigami_onboarded';
+const onboarding     = $('onboarding');
+const onboardSlides  = document.querySelectorAll('.onboard-slide');
+const onboardDots    = document.querySelectorAll('.onboard-dot');
+const onboardBack    = $('onboard-back');
+const onboardNext    = $('onboard-next');
+const onboardSkip    = $('onboard-skip');
+const btnHelp        = $('btn-help');
+let   onboardIndex   = 0;
+
+function onboardSeen() {
+  try { return localStorage.getItem(ONBOARD_KEY) === '1'; } catch (e) { return false; }
+}
+
+function renderOnboardSlide() {
+  onboardSlides.forEach((s, i) => s.classList.toggle('active', i === onboardIndex));
+  onboardDots.forEach((d, i)   => d.classList.toggle('active', i === onboardIndex));
+  onboardBack.hidden = onboardIndex === 0;
+  onboardNext.textContent = onboardIndex === onboardSlides.length - 1 ? 'Got it' : 'Next';
+}
+
+function showOnboarding() {
+  onboardIndex = 0;
+  renderOnboardSlide();
+  onboarding.hidden = false;
+}
+
+function hideOnboarding() {
+  onboarding.hidden = true;
+  try { localStorage.setItem(ONBOARD_KEY, '1'); } catch (e) {}
+}
+
+onboardNext.addEventListener('click', () => {
+  if (onboardIndex < onboardSlides.length - 1) {
+    onboardIndex++;
+    renderOnboardSlide();
+  } else {
+    hideOnboarding();
+  }
+});
+onboardBack.addEventListener('click', () => {
+  if (onboardIndex > 0) { onboardIndex--; renderOnboardSlide(); }
+});
+onboardSkip.addEventListener('click', hideOnboarding);
+btnHelp.addEventListener('click', showOnboarding);
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -457,6 +553,9 @@ async function init() {
 
   // Kick initial render if a race is already selected (shouldn't happen on load)
   if (state.race) scheduleRender();
+
+  // First-run onboarding (suppressed on return visits via localStorage)
+  if (!onboardSeen()) showOnboarding();
 }
 
 init();

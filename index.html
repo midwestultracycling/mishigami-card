@@ -52,6 +52,7 @@
         <button class="fmt-btn active" data-format="square" title="Square (Instagram feed)">&#9632; Square</button>
         <button class="fmt-btn"        data-format="story"  title="Story (Instagram / Strava)">&#9646; Story</button>
       </div>
+      <button id="btn-help" class="btn-help" title="How it works" aria-label="How it works">?</button>
     </div>
 
     <!-- Card preview (also drop target for photos) -->
@@ -120,6 +121,51 @@
         Save Card
       </button>
 
+    </div>
+  </div>
+
+  <!-- ── Onboarding overlay (first run + reopened via ? button) ───────────── -->
+  <div id="onboarding" class="onboard-overlay" hidden>
+    <div class="onboard-card">
+      <button id="onboard-skip" class="onboard-skip" aria-label="Skip">Skip</button>
+
+      <div class="onboard-slides">
+        <div class="onboard-slide active" data-slide="0">
+          <div class="onboard-icon">🚴</div>
+          <h2 class="onboard-title">Your Race Card</h2>
+          <p class="onboard-text">Make a branded progress card for your Mishigami ride — your miles, time, and pace on an image you can share.</p>
+        </div>
+        <div class="onboard-slide" data-slide="1">
+          <div class="onboard-icon">⊕</div>
+          <h2 class="onboard-title">Get your stats</h2>
+          <p class="onboard-text">Tap <strong>Get My Location</strong> and we calculate your miles, time, and pace automatically. No signal? You can always type your stats in by hand.</p>
+        </div>
+        <div class="onboard-slide" data-slide="2">
+          <div class="onboard-icon">📷</div>
+          <h2 class="onboard-title">Add a photo</h2>
+          <p class="onboard-text">Add a photo from your camera or library, then tap <strong>Save Card</strong>.</p>
+        </div>
+        <div class="onboard-slide" data-slide="3">
+          <div class="onboard-icon">📲</div>
+          <h2 class="onboard-title">Save &amp; post it</h2>
+          <p class="onboard-text onboard-os-list">
+            <span class="onboard-os"><strong>iPhone</strong> — tap Save Card, then <strong>Save Image</strong> in the share sheet. It's now in Photos. Open Instagram or Strava and post it.</span>
+            <span class="onboard-os"><strong>Android</strong> — tap Save Card and the image saves to your gallery. Open Instagram or Strava and post it.</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="onboard-dots">
+        <span class="onboard-dot active"></span>
+        <span class="onboard-dot"></span>
+        <span class="onboard-dot"></span>
+        <span class="onboard-dot"></span>
+      </div>
+
+      <div class="onboard-nav">
+        <button id="onboard-back" class="onboard-back" hidden>Back</button>
+        <button id="onboard-next" class="onboard-next">Next</button>
+      </div>
     </div>
   </div>
 
