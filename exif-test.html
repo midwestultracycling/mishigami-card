@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EXIF GPS Spike — Mishigami Race Card</title>
+  <style>
+    :root {
+      --navy: #051829;
+      --navy-2: #0a2540;
+      --peri: #8b9dc3;
+      --peri-light: #b8c4de;
+      --green: #2ecc71;
+      --red: #e74c3c;
+      --amber: #f39c12;
+      --ink: #e8edf5;
+      --muted: #8a9bb5;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0; padding: 20px 16px 60px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--navy); color: var(--ink);
+      line-height: 1.5; max-width: 640px; margin-inline: auto;
+    }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+    .card {
+      background: var(--navy-2); border: 1px solid rgba(139,157,195,.2);
+      border-radius: 14px; padding: 18px; margin-bottom: 16px;
+    }
+    .pick-btn {
+      display: block; width: 100%; padding: 18px;
+      background: var(--peri); color: var(--navy);
+      border: none; border-radius: 12px;
+      font-size: 17px; font-weight: 700; cursor: pointer;
+    }
+    .pick-btn:active { opacity: .85; }
+    .hint { font-size: 13px; color: var(--muted); margin-top: 10px; text-align: center; }
+    input[type=file] { display: none; }
+    .verdict {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 18px; font-weight: 700; margin-bottom: 14px;
+    }
+    .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+    .ok   { color: var(--green); } .ok   .dot { background: var(--green); }
+    .bad  { color: var(--red); }   .bad  .dot { background: var(--red); }
+    .warn { color: var(--amber); } .warn .dot { background: var(--amber); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    td { padding: 7px 0; border-bottom: 1px solid rgba(139,157,195,.12); vertical-align: top; }
+    td.k { color: var(--muted); width: 42%; }
+    td.v { font-variant-numeric: tabular-nums; word-break: break-word; }
+    .thumb { width: 100%; border-radius: 10px; margin-top: 12px; display: block; }
+    .device { font-size: 12px; color: var(--muted); margin-top: 18px; word-break: break-word; }
+    .legend { font-size: 13px; color: var(--muted); }
+    .legend b { color: var(--ink); }
+  </style>
+</head>
+<body>
+
+  <h1>EXIF GPS Spike</h1>
+  <p class="sub">Does a photo keep its location after the picker grabs it? Pick a few photos and see.</p>
+
+  <div class="card">
+    <button class="pick-btn" id="pick">📷 Pick a photo</button>
+    <input type="file" id="file" accept="image/*">
+    <p class="hint">Try the same photo two ways: from your library, and a fresh one straight from the camera.</p>
+  </div>
+
+  <div id="result"></div>
+
+  <div class="card">
+    <p class="legend">
+      <span class="ok"><b>● GPS found</b></span> — Phase 2 (auto-fill from photo) is viable on this device.<br><br>
+      <span class="warn"><b>● EXIF but no GPS</b></span> — photo metadata survived, but location was stripped. Common on iOS.<br><br>
+      <span class="bad"><b>● No EXIF at all</b></span> — picker re-encoded the image; nothing to read.
+    </p>
+  </div>
+
+  <p class="device" id="device"></p>
+
+<script>
+'use strict';
+
+// ── Minimal EXIF reader: JPEG APP1 → TIFF → IFD0 / GPS IFD / EXIF SubIFD ───────
+function readExif(buffer) {
+  const view = new DataView(buffer);
+  if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) {
+    return { isJpeg: false };
+  }
+  // Walk JPEG markers to find APP1 (0xFFE1) carrying "Exif\0\0"
+  let offset = 2;
+  while (offset + 4 <= view.byteLength) {
+    const marker = view.getUint16(offset);
+    if (marker === 0xFFE1) {
+      const segStart = offset + 4;
+      if (view.getUint32(segStart) === 0x45786966 /* "Exif" */) {
+        return parseTiff(view, segStart + 6); // skip "Exif\0\0"
+      }
+      return { isJpeg: true, hasExif: false };
+    }
+    if ((marker & 0xFF00) !== 0xFF00) break;       // not a marker — bail
+    if (marker === 0xFFDA) break;                  // start of scan — no more headers
+    offset += 2 + view.getUint16(offset + 2);
+  }
+  return { isJpeg: true, hasExif: false };
+}
+
+function parseTiff(view, tiffStart) {
+  const byteOrder = view.getUint16(tiffStart);
+  const little = byteOrder === 0x4949;             // "II" = little-endian
+  if (!little && byteOrder !== 0x4D4D) return { isJpeg: true, hasExif: false };
+  const g16 = o => view.getUint16(o, little);
+  const g32 = o => view.getUint32(o, little);
+
+  const out = { isJpeg: true, hasExif: true };
+  const ifd0 = tiffStart + g32(tiffStart + 4);
+  let gpsPtr = null, exifPtr = null;
+
+  readIfd(view, ifd0, tiffStart, little, g16, g32, (tag, type, count, valOff) => {
+    if (tag === 0x8825) gpsPtr  = tiffStart + g32(valOff);   // GPS IFD pointer
+    if (tag === 0x8769) exifPtr = tiffStart + g32(valOff);   // EXIF SubIFD pointer
+    if (tag === 0x010F) out.make  = readAscii(view, type, count, valOff, tiffStart, g32);
+    if (tag === 0x0110) out.model = readAscii(view, type, count, valOff, tiffStart, g32);
+  });
+
+  if (exifPtr) {
+    readIfd(view, exifPtr, tiffStart, little, g16, g32, (tag, type, count, valOff) => {
+      if (tag === 0x9003) out.dateTimeOriginal = readAscii(view, type, count, valOff, tiffStart, g32);
+    });
+  }
+
+  if (gpsPtr) {
+    let latRef, lat, lonRef, lon;
+    readIfd(view, gpsPtr, tiffStart, little, g16, g32, (tag, type, count, valOff) => {
+      if (tag === 0x0001) latRef = readAscii(view, type, count, valOff, tiffStart, g32);
+      if (tag === 0x0002) lat = readRationals(view, valOff, count, tiffStart, little, g32);
+      if (tag === 0x0003) lonRef = readAscii(view, type, count, valOff, tiffStart, g32);
+      if (tag === 0x0004) lon = readRationals(view, valOff, count, tiffStart, little, g32);
+    });
+    if (lat && lon) {
+      out.lat = dms(lat, latRef, 'S');
+      out.lon = dms(lon, lonRef, 'W');
+    }
+  }
+  return out;
+}
+
+function readIfd(view, ifd, tiffStart, little, g16, g32, cb) {
+  const n = g16(ifd);
+  for (let i = 0; i < n; i++) {
+    const entry = ifd + 2 + i * 12;
+    const tag   = g16(entry);
+    const type  = g16(entry + 2);
+    const count = g32(entry + 4);
+    cb(tag, type, count, entry + 8);  // entry+8 = value or offset field
+  }
+}
+
+const TYPE_SIZE = { 1:1, 2:1, 3:2, 4:4, 5:8, 7:1, 9:4, 10:8 };
+
+function readAscii(view, type, count, valOff, tiffStart, g32) {
+  if (type !== 2) return null;
+  const bytes = count;                       // includes trailing NUL
+  const dataOff = bytes > 4 ? tiffStart + g32(valOff) : valOff;
+  let s = '';
+  for (let i = 0; i < bytes; i++) {
+    const c = view.getUint8(dataOff + i);
+    if (c === 0) break;
+    s += String.fromCharCode(c);
+  }
+  return s.trim();
+}
+
+function readRationals(view, valOff, count, tiffStart, little, g32) {
+  // RATIONAL = 2x uint32; 3 of them (deg, min, sec) never fit in 4 bytes → always a pointer
+  const dataOff = tiffStart + g32(valOff);
+  const vals = [];
+  for (let i = 0; i < count; i++) {
+    const num = view.getUint32(dataOff + i * 8, little);
+    const den = view.getUint32(dataOff + i * 8 + 4, little);
+    vals.push(den ? num / den : 0);
+  }
+  return vals;
+}
+
+function dms(parts, ref, negRef) {
+  const dec = parts[0] + (parts[1] || 0) / 60 + (parts[2] || 0) / 3600;
+  return (ref === negRef || ref === '-') ? -dec : dec;
+}
+
+// ── UI ────────────────────────────────────────────────────────────────────────
+const pick = document.getElementById('pick');
+const file = document.getElementById('file');
+const result = document.getElementById('result');
+
+pick.addEventListener('click', () => file.click());
+
+file.addEventListener('change', () => {
+  const f = file.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => render(f, e.target.result);
+  reader.readAsArrayBuffer(f);
+});
+
+function render(f, buffer) {
+  const ex = readExif(buffer);
+  const hasGps = ex.lat != null && ex.lon != null;
+
+  let cls, label;
+  if (hasGps)            { cls = 'ok';   label = 'GPS found'; }
+  else if (ex.hasExif)   { cls = 'warn'; label = 'EXIF present, no GPS'; }
+  else                   { cls = 'bad';  label = ex.isJpeg ? 'No EXIF in this JPEG' : 'Not a JPEG (likely re-encoded)'; }
+
+  const rows = [];
+  rows.push(['File', f.name]);
+  rows.push(['Type / size', `${f.type || '—'} · ${(f.size/1024/1024).toFixed(2)} MB`]);
+  if (hasGps) {
+    rows.push(['Latitude', ex.lat.toFixed(6)]);
+    rows.push(['Longitude', ex.lon.toFixed(6)]);
+    rows.push(['Map', `<a style="color:var(--peri-light)" href="https://maps.google.com/?q=${ex.lat},${ex.lon}" target="_blank">open in Maps</a>`]);
+  }
+  if (ex.dateTimeOriginal) rows.push(['Photo taken', ex.dateTimeOriginal]);
+  if (ex.make || ex.model) rows.push(['Camera', `${ex.make||''} ${ex.model||''}`.trim()]);
+
+  const thumb = URL.createObjectURL(f);
+
+  result.innerHTML =
+    '<div class="card">' +
+      `<div class="verdict ${cls}"><span class="dot"></span>${label}</div>` +
+      '<table>' + rows.map(r => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('') + '</table>' +
+      `<img class="thumb" src="${thumb}" alt="">` +
+    '</div>' + result.innerHTML;   // prepend so newest is on top
+}
+
+document.getElementById('device').textContent = 'Device: ' + navigator.userAgent;
+</script>
+</body>
+</html>
