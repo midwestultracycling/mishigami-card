@@ -503,17 +503,23 @@ inputName.addEventListener('input', () => {
   scheduleRender();
 });
 
-// Manual stat inputs
+// Avg speed is always derived from miles + elapsed — never entered by hand.
+function recomputeSpeed() {
+  let speed = null;
+  if (state.miles != null && state.elapsed && /^\d+:\d{2}$/.test(state.elapsed)) {
+    const parts = state.elapsed.split(':');
+    const hours = parseInt(parts[0], 10) + parseInt(parts[1], 10) / 60;
+    if (hours > 0) speed = state.miles / hours;
+  }
+  state.speed = speed;
+  inputSpeed.value = speed != null ? speed.toFixed(1) : '';
+}
+
+// Manual stat inputs (miles + elapsed only)
 inputMiles.addEventListener('input', () => {
   const v = parseFloat(inputMiles.value);
   state.miles = isNaN(v) ? null : v;
-  // Recompute speed if elapsed is also set
-  if (state.miles != null && state.elapsed) {
-    const parts = state.elapsed.split(':');
-    const hours = parseInt(parts[0]) + parseInt(parts[1] || 0) / 60;
-    state.speed = hours > 0 ? state.miles / hours : null;
-    if (state.speed) inputSpeed.value = state.speed.toFixed(1);
-  }
+  recomputeSpeed();
   // Update progress bar
   if (state.miles != null && state.route) {
     state.progressFraction = state.miles / ROUTES[state.race].totalMi;
@@ -523,19 +529,7 @@ inputMiles.addEventListener('input', () => {
 
 inputElapsed.addEventListener('input', () => {
   state.elapsed = inputElapsed.value || null;
-  // Recompute speed
-  if (state.miles != null && state.elapsed && /^\d+:\d{2}$/.test(state.elapsed)) {
-    const parts = state.elapsed.split(':');
-    const hours = parseInt(parts[0]) + parseInt(parts[1]) / 60;
-    state.speed = hours > 0 ? state.miles / hours : null;
-    if (state.speed) inputSpeed.value = state.speed.toFixed(1);
-  }
-  scheduleRender();
-});
-
-inputSpeed.addEventListener('input', () => {
-  const v = parseFloat(inputSpeed.value);
-  state.speed = isNaN(v) ? null : v;
+  recomputeSpeed();
   scheduleRender();
 });
 

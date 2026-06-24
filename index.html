@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=p2">
+  <link rel="stylesheet" href="style.css?v=p3">
 </head>
 <body>
 
@@ -94,9 +94,9 @@
                  placeholder="38:24" maxlength="6">
         </div>
         <div class="stat-field">
-          <label class="field-label" for="input-speed">MPH</label>
-          <input id="input-speed" class="field-input stat-input" type="number"
-                 placeholder="6.4" step="0.1" min="0">
+          <label class="field-label" for="input-speed">AVG MPH</label>
+          <input id="input-speed" class="field-input stat-input stat-readonly" type="text"
+                 placeholder="—" inputmode="none" tabindex="-1" readonly aria-readonly="true">
         </div>
       </div>
 
@@ -169,10 +169,10 @@
     </div>
   </div>
 
-  <script src="routes/route-data.js?v=p2"></script>
-  <script src="gpx.js?v=p2"></script>
-  <script src="renderer.js?v=p2"></script>
-  <script src="exif.js?v=p2"></script>
-  <script src="app.js?v=p2"></script>
+  <script src="routes/route-data.js?v=p3"></script>
+  <script src="gpx.js?v=p3"></script>
+  <script src="renderer.js?v=p3"></script>
+  <script src="exif.js?v=p3"></script>
+  <script src="app.js?v=p3"></script>
 </body>
 </html>

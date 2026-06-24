@@ -355,6 +355,15 @@ html, body {
 .stat-field { display: flex; flex-direction: column; gap: 6px; }
 .stat-input { font-size: 16px; text-align: center; padding: 12px 6px; }
 
+/* Computed, non-editable field (avg speed) */
+.stat-readonly {
+  background: var(--bg);
+  color: var(--cream-6);
+  cursor: default;
+  pointer-events: none;
+}
+.stat-readonly:focus { border-color: var(--periw-d); }
+
 /* ── Route map toggle ───────────────────────────────────────────────────── */
 .option-row {
   display: flex;
