@@ -503,13 +503,23 @@ inputName.addEventListener('input', () => {
   scheduleRender();
 });
 
+// Parse an elapsed entry into decimal hours. Accepts "H:MM" (e.g. 38:24) or a
+// plain hours number (e.g. "38" or "7.5"), since the field is labeled "Elapsed Hours".
+function elapsedToHours(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  let m = /^(\d+):(\d{1,2})$/.exec(s);
+  if (m) return parseInt(m[1], 10) + parseInt(m[2], 10) / 60;
+  if (/^\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+  return null;
+}
+
 // Avg speed is always derived from miles + elapsed — never entered by hand.
 function recomputeSpeed() {
   let speed = null;
-  if (state.miles != null && state.elapsed && /^\d+:\d{2}$/.test(state.elapsed)) {
-    const parts = state.elapsed.split(':');
-    const hours = parseInt(parts[0], 10) + parseInt(parts[1], 10) / 60;
-    if (hours > 0) speed = state.miles / hours;
+  const hours = elapsedToHours(state.elapsed);
+  if (state.miles != null && hours != null && hours > 0) {
+    speed = state.miles / hours;
   }
   state.speed = speed;
   inputSpeed.value = speed != null ? speed.toFixed(1) : '';
