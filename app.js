@@ -157,7 +157,7 @@ function getLocation() {
       state.progressFraction = result.progressFraction;
 
       // Populate fields
-      inputMiles.value   = result.distanceMiles.toFixed(1);
+      inputMiles.value   = Math.round(result.distanceMiles);
       inputElapsed.value = elapsed || '';
       inputSpeed.value   = speed ? speed.toFixed(1) : '';
 
@@ -235,6 +235,8 @@ function loadLogo() {
 
 function handlePhotoFile(file) {
   if (!file || !file.type.startsWith('image/')) return;
+
+  // Load the image for the preview.
   const reader = new FileReader();
   reader.onload = e => {
     const img = new Image();
@@ -246,6 +248,82 @@ function handlePhotoFile(file) {
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+
+  // Phase 2: read EXIF GPS in parallel and auto-fill stats if the photo carries a location.
+  const exifReader = new FileReader();
+  exifReader.onload = e => applyPhotoExif(e.target.result);
+  exifReader.readAsArrayBuffer(file);
+}
+
+// Fallback only: hours to ADD to camera local time to get UTC if a photo carries
+// neither a GPS timestamp nor an offset tag. The race weekend straddles two zones
+// (Central on the WI/IL shore, Eastern on the MI shore), so we default to Central.
+const RACE_TZ_TO_UTC_HOURS = 5;
+
+function elapsedFromUtcMs(utcMs) {
+  const diff = utcMs - RACE_START_UTC;
+  if (isNaN(diff) || diff < 0) return null;
+  const mins = Math.floor(diff / 60000);
+  return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`;
+}
+
+// Resolve elapsed from EXIF, timezone-correctly, in order of reliability:
+//   1. GPS timestamp — already UTC, correct on either shore. No assumptions.
+//   2. DateTimeOriginal + OffsetTimeOriginal — local time plus its recorded UTC offset.
+//   3. DateTimeOriginal alone — assume the race's Central timezone (last resort).
+function exifElapsed(ex) {
+  if (ex.gpsTimestampMs != null) return elapsedFromUtcMs(ex.gpsTimestampMs);
+
+  const m = /^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/.exec(ex.dateTimeOriginal || '');
+  if (!m) return null;
+  const [, Y, Mo, D, H, Mi, S] = m.map(Number);
+
+  const off = /^([+-])(\d{2}):(\d{2})/.exec(ex.offsetTimeOriginal || '');
+  if (off) {
+    const offMin = (off[1] === '-' ? -1 : 1) * (Number(off[2]) * 60 + Number(off[3]));
+    return elapsedFromUtcMs(Date.UTC(Y, Mo - 1, D, H, Mi, S) - offMin * 60000);
+  }
+  return elapsedFromUtcMs(Date.UTC(Y, Mo - 1, D, H + RACE_TZ_TO_UTC_HOURS, Mi, S));
+}
+
+// Auto-fill miles / elapsed / speed from a photo's embedded GPS + timestamp.
+function applyPhotoExif(buffer) {
+  let ex;
+  try { ex = EXIF.read(buffer); }
+  catch (err) { console.warn('[EXIF] parse failed:', err); return; }
+
+  // No location in the photo (e.g. shot in-app, or stripped) — leave fields for GPS/manual.
+  if (!ex || ex.lat == null || ex.lon == null) return;
+
+  if (!state.route) {
+    setGpsStatus('Photo has a location — route still loading, tap Add Photo again in a moment.', false);
+    return;
+  }
+
+  const result = GPX.snap(ex.lat, ex.lon, state.route);
+
+  // Elapsed: prefer the photo's own timestamp (timezone-correct); fall back to now.
+  const elapsed = exifElapsed(ex) || calcElapsed();
+
+  let speed = null;
+  if (elapsed && result.distanceMiles > 0) {
+    const parts = elapsed.split(':');
+    const hours = parseInt(parts[0]) + parseInt(parts[1]) / 60;
+    if (hours > 0) speed = result.distanceMiles / hours;
+  }
+
+  state.miles            = result.distanceMiles;
+  state.elapsed          = elapsed;
+  state.speed            = speed;
+  state.progressFraction = result.progressFraction;
+
+  inputMiles.value   = Math.round(result.distanceMiles);
+  inputElapsed.value = elapsed || '';
+  inputSpeed.value   = speed ? speed.toFixed(1) : '';
+
+  const pct = (result.progressFraction * 100).toFixed(1);
+  setGpsStatus(`📍 Location from photo · ${pct}% complete`, false);
+  scheduleRender();
 }
 
 // ── Download / Share ──────────────────────────────────────────────────────────

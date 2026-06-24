@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=p1">
+  <link rel="stylesheet" href="style.css?v=p2">
 </head>
 <body>
 
@@ -66,12 +66,12 @@
     <!-- Controls -->
     <div class="controls">
 
-      <!-- GPS -->
-      <button id="btn-gps" class="btn-primary btn-gps">
-        <span class="btn-icon">⊕</span>
-        <span id="btn-gps-label">Get My Location</span>
+      <!-- Photo (drives location via EXIF; placed first) -->
+      <button id="btn-photo" class="btn-primary btn-photo-primary">
+        <span class="btn-icon">📷</span>
+        <span id="btn-photo-label">Add Photo</span>
       </button>
-      <div id="gps-status" class="gps-status"></div>
+      <input id="input-photo" type="file" accept="image/*" style="display:none">
 
       <!-- Rider name -->
       <div class="field-group">
@@ -81,15 +81,15 @@
                autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
       </div>
 
-      <!-- Stats row (auto-filled by GPS; manually editable) -->
+      <!-- Stats row (auto-filled from photo location or GPS; manually editable) -->
       <div class="stats-row">
         <div class="stat-field">
           <label class="field-label" for="input-miles">MILES</label>
           <input id="input-miles" class="field-input stat-input" type="number"
-                 placeholder="247" step="0.1" min="0">
+                 placeholder="247" step="1" min="0">
         </div>
         <div class="stat-field">
-          <label class="field-label" for="input-elapsed">ELAPSED</label>
+          <label class="field-label" for="input-elapsed">ELAPSED HOURS</label>
           <input id="input-elapsed" class="field-input stat-input" type="text"
                  placeholder="38:24" maxlength="6">
         </div>
@@ -100,12 +100,12 @@
         </div>
       </div>
 
-      <!-- Photo -->
-      <button id="btn-photo" class="btn-secondary">
-        <span class="btn-icon">📷</span>
-        <span id="btn-photo-label">Add Photo</span>
+      <!-- GPS (live fallback when a photo has no location) -->
+      <button id="btn-gps" class="btn-secondary btn-gps">
+        <span class="btn-icon">⊕</span>
+        <span id="btn-gps-label">Get My Location</span>
       </button>
-      <input id="input-photo" type="file" accept="image/*" style="display:none">
+      <div id="gps-status" class="gps-status"></div>
 
       <!-- Route map toggle -->
       <div class="option-row">
@@ -169,9 +169,10 @@
     </div>
   </div>
 
-  <script src="routes/route-data.js?v=p1"></script>
-  <script src="gpx.js?v=p1"></script>
-  <script src="renderer.js?v=p1"></script>
-  <script src="app.js?v=p1"></script>
+  <script src="routes/route-data.js?v=p2"></script>
+  <script src="gpx.js?v=p2"></script>
+  <script src="renderer.js?v=p2"></script>
+  <script src="exif.js?v=p2"></script>
+  <script src="app.js?v=p2"></script>
 </body>
 </html>

@@ -346,7 +346,7 @@ const Renderer = (() => {
   }
 
   // Format helpers
-  function formatMiles(m)  { return Number(m).toFixed(1); }
+  function formatMiles(m)  { return String(Math.round(Number(m))); }
   function formatSpeed(s)  { return Number(s).toFixed(1); }
 
   /**

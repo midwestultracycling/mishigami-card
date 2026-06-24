@@ -271,7 +271,7 @@ html, body {
 .btn-primary:active { transform: scale(.98); }
 .btn-primary:disabled { opacity: 0.4; cursor: default; transform: none; }
 
-.btn-gps {
+.btn-photo-primary {
   background: var(--periw);
   color: var(--bg);
 }
