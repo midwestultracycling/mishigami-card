@@ -1,7 +1,7 @@
 {
-  "name": "Mishigami Race Card",
-  "short_name": "Race Card",
-  "description": "Create and share your Mishigami 2026 race progress card",
+  "name": "Mishigami Postcard",
+  "short_name": "Postcard",
+  "description": "Create and share your Mishigami 2026 ride postcard",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#051829",

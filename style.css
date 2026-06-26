@@ -739,3 +739,18 @@ html, body {
   padding: 13px;
   cursor: pointer;
 }
+
+/* ── Postcard stamp emblem ───────────────────────────────────────────────── */
+.emblem-hero {
+  display: block;
+  width: min(232px, 62vw);
+  height: auto;
+  margin: 0 auto 6px;
+  filter: drop-shadow(0 12px 26px rgba(0,0,0,.38));
+}
+.emblem-onboard {
+  display: block;
+  width: 140px;
+  height: auto;
+  margin: 0 auto;
+}

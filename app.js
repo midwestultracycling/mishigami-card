@@ -1,5 +1,5 @@
 /**
- * app.js — Mishigami Race Card main application
+ * app.js — Mishigami Postcard main application
  *
  * Race start: July 11, 2026 at 7:00 AM CDT (= 12:00 UTC)
  */
@@ -334,7 +334,7 @@ function buildFilename() {
   const miPart  = state.miles != null ? `-${Math.round(state.miles)}mi` : '';
   const d       = new Date();
   const datePart = `-${d.getMonth() + 1}-${d.getDate()}`;
-  return `${race}-race-card-${name}${miPart}${datePart}.png`;
+  return `${race}-postcard-${name}${miPart}${datePart}.png`;
 }
 
 function renderFull() {
@@ -366,7 +366,7 @@ async function downloadCard() {
     try {
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       const file = new File([blob], filename, { type: 'image/png' });
-      await navigator.share({ files: [file], title: 'Mishigami Race Card' });
+      await navigator.share({ files: [file], title: 'Mishigami Postcard' });
       showSuccessPanel();
       return; // success — share sheet appeared
     } catch (e) {
@@ -400,7 +400,7 @@ function showSaveModal(dataUrl) {
   overlay.innerHTML =
     '<div class="save-modal-inner">' +
       '<p class="save-modal-hint">Long press the image below<br>then tap <strong>Save to Photos</strong></p>' +
-      '<img src="' + dataUrl + '" class="save-modal-img" alt="Race Card">' +
+      '<img src="' + dataUrl + '" class="save-modal-img" alt="Postcard">' +
       '<button class="save-modal-close">Close</button>' +
     '</div>';
   document.body.appendChild(overlay);
@@ -420,10 +420,10 @@ function showSuccessPanel() {
   overlay.innerHTML =
     '<div class="success-card">' +
       '<div class="success-check">✓</div>' +
-      '<div class="success-title">Card saved!</div>' +
+      '<div class="success-title">Postcard saved!</div>' +
       '<p class="success-text">Now open <strong>Instagram</strong> or <strong>Strava</strong> and post it from your camera roll.</p>' +
       '<div class="success-actions">' +
-        '<button class="success-again">+ Create another card</button>' +
+        '<button class="success-again">+ Create another postcard</button>' +
         '<button class="success-done">Done</button>' +
       '</div>' +
     '</div>';
