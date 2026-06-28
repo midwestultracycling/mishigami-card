@@ -1,15 +1,15 @@
 /**
  * app.js — Mishigami Postcard main application
  *
- * Race start: July 11, 2026 at 7:00 AM CDT (= 12:00 UTC)
+ * Race start: July 11, 2026 at 6:00 AM CDT (= 11:00 UTC)
  */
 
 'use strict';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-// Race start time: 2026-07-11 07:00 CDT = 12:00 UTC
-const RACE_START_UTC = new Date('2026-07-11T12:00:00Z').getTime();
+// Race start time: 2026-07-11 06:00 CDT = 11:00 UTC
+const RACE_START_UTC = new Date('2026-07-11T11:00:00Z').getTime();
 
 const ROUTES = {
   'mishigami': { file: 'routes/mishigami.json',  totalMi: 1121.0, label: 'MISHIGAMI MAIN EVENT' },

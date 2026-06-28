@@ -5,7 +5,7 @@ A Progressive Web App for Mishigami 2026 riders to create branded race progress 
 ## What it does
 
 - Riders open the URL on their phone during the race
-- Tap **Get My Location** — GPS auto-calculates miles from start, elapsed time since 7AM start, and average speed
+- Tap **Get My Location** — GPS auto-calculates miles from start, elapsed time since 6AM start, and average speed
 - Add a photo (camera or library)
 - Download a branded 1080×1080 (feed) or 1080×1920 (story) PNG ready for Instagram or Strava
 
@@ -19,7 +19,7 @@ A Progressive Web App for Mishigami 2026 riders to create branded race progress 
 
 ## Updating for race day
 
-- **Race start time:** Set in `app.js` → `RACE_START_UTC` (currently `2026-07-11T12:00:00Z` = 7AM CDT)
+- **Race start time:** Set in `app.js` → `RACE_START_UTC` (currently `2026-07-11T11:00:00Z` = 6AM CDT)
 - **Route files:** Replace `routes/mishigami.json` and `routes/mini-gami.json` when 2026 routes are finalized
 - **Logo:** `assets/logo.png` — swap with updated brand assets as needed
 
